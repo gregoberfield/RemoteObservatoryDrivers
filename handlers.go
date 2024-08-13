@@ -19,6 +19,15 @@ var (
 	connMutex   sync.Mutex
 )
 
+// AlpacaResponse represents the standard Alpaca API response structure
+type AlpacaResponse struct {
+	Value               interface{} `json:"Value"`
+	ClientTransactionID uint32      `json:"ClientTransactionID"`
+	ServerTransactionID uint32      `json:"ServerTransactionID"`
+	ErrorNumber         int         `json:"ErrorNumber"`
+	ErrorMessage        string      `json:"ErrorMessage"`
+}
+
 func handleHome(w http.ResponseWriter, r *http.Request) {
 	tmpl := `
 <!DOCTYPE html>
@@ -108,6 +117,41 @@ func getPollingIntervalMilliseconds() int64 {
 	return duration.Milliseconds()
 }
 
+// handleAlpacaResponse is a generic function to handle Alpaca API responses
+func handleAlpacaResponse(w http.ResponseWriter, r *http.Request, getValue func() (interface{}, error)) {
+	w.Header().Set("Content-Type", "application/json")
+
+	clientTransactionIDStr := r.URL.Query().Get("ClientTransactionID")
+	clientTransactionID, err := strconv.ParseUint(clientTransactionIDStr, 10, 32)
+	if err != nil {
+		clientTransactionID = 0
+	}
+
+	response := AlpacaResponse{
+		ClientTransactionID: uint32(clientTransactionID),
+		ServerTransactionID: uint32(getNextTransactionID()),
+	}
+
+	if r.Method != http.MethodGet {
+		response.ErrorNumber = 1007 // Invalid Operation
+		response.ErrorMessage = "Method not allowed"
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	value, err := getValue()
+	if err != nil {
+		response.ErrorNumber = 1001 // General Error
+		response.ErrorMessage = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		response.Value = value
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
 func handleDescription(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"Value": "Boltwood II Weather Data Driver",
@@ -127,52 +171,26 @@ func handleDriverVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTemperature(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse the common query parameters
-	clientID := r.URL.Query().Get("ClientID")
-	clientTransactionIDStr := r.URL.Query().Get("ClientTransactionID")
-
-	// Convert ClientTransactionID to uint32
-	clientTransactionID, err := strconv.ParseUint(clientTransactionIDStr, 10, 32)
-	if err != nil {
-		clientTransactionID = 0 // Default to 0 if parsing fails
-	}
-
-	// Prepare the response structure
-	response := struct {
-		Value               float64 `json:"Value"`
-		ClientTransactionID uint32  `json:"ClientTransactionID"`
-		ServerTransactionID uint32  `json:"ServerTransactionID"`
-		ErrorNumber         int     `json:"ErrorNumber"`
-		ErrorMessage        string  `json:"ErrorMessage"`
-	}{
-		ClientTransactionID: uint32(clientTransactionID),
-		ServerTransactionID: uint32(getNextTransactionID()),
-		ErrorNumber:         0,
-		ErrorMessage:        "",
-	}
-
-	if r.Method != "GET" {
-		response.ErrorNumber = 1007 // Invalid Operation
-		response.ErrorMessage = "Method not allowed"
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	response.Value = weatherData.SensorTemperature
-
-	// Log the request (optional, but helpful for debugging)
-	log.Printf("Temperature request: ClientID=%s, ClientTransactionID=%d, Value=%v",
-		clientID, clientTransactionID, response.Value)
-
-	json.NewEncoder(w).Encode(response)
+	handleAlpacaResponse(w, r, func() (interface{}, error) {
+		return weatherData.SensorTemperature, nil
+	})
 }
 
 func handleHumidity(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"Value": weatherData.Humidity,
+	handleAlpacaResponse(w, r, func() (interface{}, error) {
+		return weatherData.Humidity, nil
+	})
+}
+
+func handleDewPoint(w http.ResponseWriter, r *http.Request) {
+	handleAlpacaResponse(w, r, func() (interface{}, error) {
+		return weatherData.DewPoint, nil
+	})
+}
+
+func handleWindSpeed(w http.ResponseWriter, r *http.Request) {
+	handleAlpacaResponse(w, r, func() (interface{}, error) {
+		return weatherData.WindSpeed, nil
 	})
 }
 
