@@ -1,0 +1,7 @@
+{
+  "boltwoodSource": "https://devnull.sfo3.digitaloceanspaces.com/starfront/weatherdata.txt",
+  "pollingInterval": "30s",
+  "webServerPort": 8080,
+  "discoveryPort": 32227,
+  "timezone": "America/Chicago"
+}
