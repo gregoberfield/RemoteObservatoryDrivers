@@ -1,5 +1,5 @@
 {
-  "boltwoodSource": "https://devnull.sfo3.digitaloceanspaces.com/starfront/weatherdata.txt",
+  "boltwoodSource": "https://put_some_url_here",
   "pollingInterval": "30s",
   "webServerPort": 8080,
   "discoveryPort": 32227,
