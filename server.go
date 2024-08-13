@@ -53,6 +53,9 @@ func setupRoutes(router *mux.Router) http.Handler {
 	// Existing device-specific endpoints
 	router.HandleFunc("/api/v1/observingconditions/0/temperature", handleTemperature).Methods("GET")
 	router.HandleFunc("/api/v1/observingconditions/0/humidity", handleHumidity).Methods("GET")
+	router.HandleFunc("/api/v1/observingconditions/0/dewpoint", handleDewPoint).Methods("GET")
+	router.HandleFunc("/api/v1/observingconditions/0/windspeed", handleWindSpeed).Methods("GET")
+	router.HandleFunc("/api/v1/observingconditions/0/windspeed", handleWindSpeed).Methods("GET")
 
 	// Return the logged router instead of the original router
 	return loggedRouter
